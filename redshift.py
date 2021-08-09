@@ -57,7 +57,8 @@ class Redshift_Data_Model():
         for table in tables:
             subtable = re.match(pat,table)
             if not subtable:
-                self.model[table] = ([table],[])
+                self.model[table] = ([table],[],{})
+                self.model.register_subtable(table,table)
             else:
                 self.model[subtable.group(1)][0].append(table)
                 self.model.register_subtable(subtable.group(1),table)
@@ -65,6 +66,7 @@ class Redshift_Data_Model():
         for (table,ordinal_pos,col_name,data_type,char_len, num_precision, num_radix) in cols:
             if table in self.model.keys():
                 self.model[table][1].append((col_name,data_type,char_len,num_precision, num_radix))
+                self.model[table][2][col_name] = (col_name,data_type,char_len,num_precision, num_radix)
 
         #save a copy for later retrieval
         #with open(wd + self.fname,'wt') as sink:
@@ -77,15 +79,24 @@ class Redshift_Data_Model():
     def list_cols(self,table):
         """List the names of all columns in a chosen table."""
         return [col[0] for col in self.model[table][1]]
+    
+    def get_col_tuple(self,table,column):
+        return self.model[table][2][column]
 
     def list_subtables(self,table):
         """List all the tables containing data for the table class provided in the tables parameter."""
         return self.model[table][0]
+    
+    def master_table(self,subtable):
+        return self.model.subtables[subtable]
 
-    def create_statement(self,table):
+    def create_statement(self,table,schema=None):
         """Return a psql create statement for the table class provided in the table parameter.  Tables are created without primary keys."""
         cols = self.model[table][1]
-        statement = 'CREATE TABLE %s (' % table + ', '.join([describe_field(col) for col in cols]) + ');'
+        if schema is None:
+            statement = 'CREATE TABLE %s (' % table + ', '.join([describe_field(col) for col in cols]) + ');'
+        else:
+            statement = 'CREATE TABLE %s.%s (' % (schema,table) + ', '.join([describe_field(col) for col in cols]) + ');'
         return statement
 
     def select_statement(self,table):
@@ -94,11 +105,24 @@ class Redshift_Data_Model():
         statement = "SELECT " + ', '.join([dereserve(col[0]) for col in cols]) + " FROM " + table
         return statement
 
-    def select_statement_by_dates(self,table,start_date,end_date):
+    def select_statement_by_dates(self,table,start_date,end_date,date_field='created_at'):
         """Return a select statement with a WHERE clause restricting to values with a created_at field between the start_date and end_dates provided (as python date objects)."""
         statement = self.select_statement(table)
-        statement += " WHERE created_at BETWEEN '%s' AND '%s'" % (start_date.isoformat(), end_date.isoformat())
+        statement += " WHERE trunc(%s) BETWEEN '%s' AND '%s'" % (date_field,start_date.isoformat(), end_date.isoformat())
         return statement
+        
+    def select_statement_by_ids(self,table,start_id,end_id):
+        """Return a select statement with a WHERE clause restricting to values with a created_at field between the start_date and end_dates provided (as python date objects)."""
+        statement = self.select_statement(table)
+        statement += " WHERE id BETWEEN '%s' AND '%s'" % (str(start_id), str(end_id))
+        return statement
+        
+    def append_statements(self,table,column):
+        cols = self.model[table][1]
+        s1 = 'ALTER TABLE redshift.%s ADD %s' % (table, describe_field(self.get_col_tuple(table,column)))
+        s2 = 'ALTER TABLE redshift_staging.%s ADD %s' % (table, describe_field(self.get_col_tuple(table,column)))
+        return (s1,s2)
+        
 
 class ModelDict(dict):
     """Custom dictionary class that overrides __getitem__ to provide parent table values where appropriate for looking up subtables."""

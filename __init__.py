@@ -1,1 +1,1 @@
-__all__ = ['redshift','controller','local_settings']
+__all__ = ['redshift','controller','local_settings','upbound']

@@ -109,6 +109,27 @@ class Controller():
             self.up.upload_limited(fname,table)
         else:
             self.up.upload_limited_mutable(fname,table)
+
+    def alter_for_added_cols(self,table):
+        self.dl.model.refresh();
+        redshift_cols = self.dl.model.list_cols(table)
+        self.up.curs.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'redshift' AND table_name = '%s'" % table)
+        aws_cols = [row[0] for row in self.up.curs.fetchall()]
+        for col in redshift_cols:
+            if col not in aws_cols:
+                stmnts = self.dl.model.append_statements(table,col)
+                print(stmnts[0] )
+                print(stmnts[1] )
+
+    def create_all_missing(self):
+        self.dl.model.refresh()
+        redshift_tables = self.dl.model.list_tables()
+        self.up.curs.execute("SELECT table_name FROM information_Schema.tables WHERE table_schema ='redshift'")
+        aws_tables = [row[0] for row in self.up.curs.fetchall()]
+        for table in redshift_tables:
+            if table not in aws_tables:
+                print(self.dl.model.create_statement(table,'redshift'))
+                print(self.dl.model.create_statement(table,'redshift_staging'))
             
 
 class Downloader():

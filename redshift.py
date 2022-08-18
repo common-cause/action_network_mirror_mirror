@@ -119,10 +119,10 @@ class Redshift_Data_Model():
         
     def append_statements(self,table,column):
         cols = self.model[table][1]
-        s1 = 'ALTER TABLE redshift.%s ADD %s' % (table, describe_field(self.get_col_tuple(table,column)))
-        s2 = 'ALTER TABLE redshift_staging.%s ADD %s' % (table, describe_field(self.get_col_tuple(table,column)))
+        s1 = 'ALTER TABLE redshift.%s ADD %s;' % (table, describe_field(self.get_col_tuple(table,column)))
+        s2 = 'ALTER TABLE redshift_staging.%s ADD %s;' % (table, describe_field(self.get_col_tuple(table,column)))
         return (s1,s2)
-        
+
 
 class ModelDict(dict):
     """Custom dictionary class that overrides __getitem__ to provide parent table values where appropriate for looking up subtables."""

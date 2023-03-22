@@ -18,7 +18,7 @@ class Controller():
     
     def attempt_download(self,table):
         """Attempt to use the downloader to retrieve a single table.  Return True on success, False on failure.  Log errors encountered."""
-        if 'created_at' in self.dl.model.list_cols(table):
+        if 'created_at' in self.dl.model.list_cols(table) and table != 'donations_recurring_donations':
             func_to_use = self.dl.maxchunk_download
         else:
             func_to_use = self.dl.download

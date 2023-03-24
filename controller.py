@@ -83,8 +83,8 @@ class Controller():
     def limited_download(self,table,max_chunk=200000):
         master_table = self.dl.model.master_table(table)
         log('attempting a limited update of table %s' % table)
-        if master_table in no_date_field:
-            raise self.dl.maxchunk_download_nodate(table,max_chunk=max_chunk)
+        if master_table in no_date_field or master_table == 'donations_recurring_donations':
+            self.dl.maxchunk_download_nodate(table,max_chunk=max_chunk)
         if master_table in immutables:
             date_field = 'created_at'
         else:
@@ -160,10 +160,13 @@ class Downloader():
             save_as = table_name + '.csv'
         q = "SELECT min(id), max(id) FROM %s" % table_name
         (min_id, max_id) = self.conn.fetch(q)[0]
+        q = "SELECT count(1) FROM %s" % table_name
+        records = self.conn.fetch(q)[0][0]
+        chunksize = ((max_id - min_id) // records) * max_chunk
         id_ranges = []
         while min_id < max_id:
-            id_ranges.append((min_id,min_id+max_chunk-1))
-            min_id+= max_chunk
+            id_ranges.append((min_id,min_id+chunksize-1))
+            min_id+= chunksize
         fnum = 1
         for chunk in id_ranges:
             self._download(self.model.select_statement_by_ids(table_name,chunk[0],chunk[1]),save_as[:-1] + str(fnum))

@@ -5,7 +5,7 @@ from io import StringIO
 up = Uploader()
 
 def csv_to_table(fname,dest):
-    with open(fname) as src:
+    with open(fname,'rt',encoding='latin1') as src:
         r = csv.reader(src)
         header = next(r)
         data_types = next(r)
